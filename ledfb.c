@@ -375,8 +375,9 @@ static int virtfb_unmap_video_memory(struct fb_info *fbi)
 	// fbi->fix.smem_start = 0;
 	// fbi->fix.smem_len = 0;
 	
-	vfree(fbi->screen_base);
 	fbi->screen_base = 0;
+	screen_base = 0;
+	vfree(fbi->screen_base);
 
 	printk("ledfb: unmapped memory\n");
 
@@ -461,12 +462,16 @@ static void virtfb_unregister(struct fb_info *fbi)
 
 static int dev_open(struct inode *inode, struct file *fil)
 {
+	module_put(THIS_MODULE);
 	printk("ledfb-user: openend\n");
 	return 0;
 }
 
 static ssize_t dev_read(struct file *filp, char *buf, size_t len, loff_t *off)
 {
+	if (screen_base == 0)
+		return -1;
+
 	copy_to_user(buf, screen_base, len);
 	return len;
 }
@@ -478,6 +483,9 @@ static ssize_t dev_write(struct file *filp, const char *buff, size_t len, loff_t
 
 static int dev_rls(struct inode *inod, struct file *filp)
 {
+	if (!try_module_get(THIS_MODULE))
+		return -1;
+	
 	printk("ledfb-user: closed\n");
 	return 0;
 }
@@ -578,7 +586,9 @@ void virtfb_exit(void)
 
 	int i;
 
-        for(i=0;i<vfbcount;i++)
+	userland_destroy();
+
+    for(i=0;i<vfbcount;i++)
 	{
 		if(g_fb_list[i])
 		{
@@ -588,8 +598,6 @@ void virtfb_exit(void)
 			framebuffer_release(g_fb_list[i]);
 		}
 	}
-
-	userland_destroy();
 }
 
 
