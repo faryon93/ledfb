@@ -43,7 +43,7 @@
 #include <linux/console.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
-//#include <asm/mach-types.h>
+#include <linux/miscdevice.h>
 
 /*
  * Driver name
@@ -490,9 +490,26 @@ static struct file_operations fops =
 	.release = dev_rls,
 };
 
+static struct miscdevice userland_dev = {
+        /*
+         * We don't care what minor number we end up with, so tell the
+         * kernel to just pick one.
+         */
+        MISC_DYNAMIC_MINOR,
+        /*
+         * Name ourselves /dev/hello.
+         */
+        "ledfb-user",
+        /*
+         * What functions to call when a program performs file
+         * operations on the device.
+         */
+        &fops
+};
+
 int userland_init(void)
 {
-	if (!register_chrdev(89, "ledfb-userland", &fops))
+	if (misc_register(&userland_dev))
 		printk(KERN_ALERT "failed to register userland device\n");
 
 	return 0;
@@ -500,7 +517,7 @@ int userland_init(void)
 
 void userland_destroy(void)
 {
-	unregister_chrdev(89, "ledfb-userland");
+	misc_deregister(&userland_dev);
 }
 
 
