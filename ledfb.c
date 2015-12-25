@@ -485,7 +485,7 @@ static int dev_rls(struct inode *inod, struct file *filp)
 {
 	if (!try_module_get(THIS_MODULE))
 		return -1;
-	
+
 	printk("ledfb-user: closed\n");
 	return 0;
 }
@@ -604,7 +604,7 @@ void virtfb_exit(void)
 module_init(virtfb_init);
 module_exit(virtfb_exit);
 
-MODULE_AUTHOR("Freescale Semiconductor, Inc.");
-MODULE_DESCRIPTION("Virtual framebuffer driver");
+MODULE_AUTHOR("Maximilian Pachl");
+MODULE_DESCRIPTION("framebuffer driver for led matrix");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("fb");
