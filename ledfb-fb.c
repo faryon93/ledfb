@@ -302,7 +302,7 @@ fail:
     	framebuffer_release(g_fbi);
 	}
 
-	// TODO: unregister userland char device
+	ledfb_user_exit();
 
 	printk(KERN_ALERT "failed to initialize ledfb driver\n");
 
