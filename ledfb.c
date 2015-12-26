@@ -3,7 +3,6 @@
 #include <linux/console.h>
 #include <linux/uaccess.h>
 
-#include "ledfb-userland.h"
 
 /*
  * Driver name
@@ -270,13 +269,6 @@ int __init ledfb_init(void)
 {
 	int ret;    
 
-	printk("Hello from ledfb driver\n");
-
-	// initialize the userland interface
-    ret = ledfb_user_init();
-    if (ret != 0)
-    	goto fail;
-
 	// initialize the framebuffer structure
     g_fbi = virtfb_init_fbinfo(&virtfb_ops);
     if (!g_fbi)
@@ -302,8 +294,6 @@ fail:
     	framebuffer_release(g_fbi);
 	}
 
-	ledfb_user_exit();
-
 	printk(KERN_ALERT "failed to initialize ledfb driver\n");
 
 	return ret;
@@ -311,9 +301,6 @@ fail:
 
 void ledfb_exit(void)
 {
-	// destroy the userland device
-	ledfb_user_exit();
-
 	// destroy the freamebuffer device
 	virtfb_unregister(g_fbi);
 	virtfb_unmap_video_memory(g_fbi);
