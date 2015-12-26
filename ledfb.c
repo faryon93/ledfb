@@ -105,7 +105,6 @@ static int virtfb_set_par(struct fb_info *fbi)
 	return retval;
 }
 
-
 /*
  * Check framebuffer variable parameters and adjust to valid values.
  * @param       var      framebuffer variable parameters
@@ -113,91 +112,29 @@ static int virtfb_set_par(struct fb_info *fbi)
  */
 static int virtfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
-
-	/* fg should not bigger than bg */
-
-	/*if (var->xres_virtual < var->xres)
+	// TODO: do we really want this to be modfied? i think not...
+	if (var->xres_virtual < var->xres)
 		var->xres_virtual = var->xres;
 
 	if (var->yres_virtual < var->yres)
 		var->yres_virtual = var->yres;
 
-	if ((var->bits_per_pixel != 32) && (var->bits_per_pixel != 24) &&
-	    (var->bits_per_pixel != 16) && (var->bits_per_pixel != 12) &&
-	    (var->bits_per_pixel != 8))
-		var->bits_per_pixel = 16;
+	// our led matrix is just 24bpp, nothing else
+	var->bits_per_pixel = 24;
+	var->red.length = 8;
+	var->red.offset = 16;
+	var->red.msb_right = 0;
+	var->green.length = 8;
+	var->green.offset = 8;
+	var->green.msb_right = 0;
+	var->blue.length = 8;
+	var->blue.offset = 0;
+	var->blue.msb_right = 0;
+	var->transp.length = 0;
+	var->transp.offset = 0;
+	var->transp.msb_right = 0;
 
-	switch (var->bits_per_pixel) {
-	case 8:
-		var->red.length = 3;
-		var->red.offset = 5;
-		var->red.msb_right = 0;
-
-		var->green.length = 3;
-		var->green.offset = 2;
-		var->green.msb_right = 0;
-
-		var->blue.length = 2;
-		var->blue.offset = 0;
-		var->blue.msb_right = 0;
-
-		var->transp.length = 0;
-		var->transp.offset = 0;
-		var->transp.msb_right = 0;
-		break;
-	case 16:
-		var->red.length = 5;
-		var->red.offset = 11;
-		var->red.msb_right = 0;
-
-		var->green.length = 6;
-		var->green.offset = 5;
-		var->green.msb_right = 0;
-
-		var->blue.length = 5;
-		var->blue.offset = 0;
-		var->blue.msb_right = 0;
-
-		var->transp.length = 0;
-		var->transp.offset = 0;
-		var->transp.msb_right = 0;
-		break;
-	case 24:
-		var->red.length = 8;
-		var->red.offset = 16;
-		var->red.msb_right = 0;
-
-		var->green.length = 8;
-		var->green.offset = 8;
-		var->green.msb_right = 0;
-
-		var->blue.length = 8;
-		var->blue.offset = 0;
-		var->blue.msb_right = 0;
-
-		var->transp.length = 0;
-		var->transp.offset = 0;
-		var->transp.msb_right = 0;
-		break;
-	case 32:
-		var->red.length = 8;
-		var->red.offset = 16;
-		var->red.msb_right = 0;
-
-		var->green.length = 8;
-		var->green.offset = 8;
-		var->green.msb_right = 0;
-
-		var->blue.length = 8;
-		var->blue.offset = 0;
-		var->blue.msb_right = 0;
-
-		var->transp.length = 8;
-		var->transp.offset = 24;
-		var->transp.msb_right = 0;
-		break;
-	}*/
-
+	// dont know why that...
 	var->height = -1;
 	var->width = -1;
 	var->grayscale = 0;
@@ -277,7 +214,7 @@ static int virtfb_map_video_memory(struct fb_info *fbi)
 	fbi->fix.smem_start = 0;
 
 	// allocate the virtual memory
-	fbi->screen_base = vmalloc_user(fbi->var.xres * fbi->var.yres * fbi->var.bits_per_pixel/8);
+	fbi->screen_base = vmalloc_user(fbi->var.xres * fbi->var.yres * (fbi->var.bits_per_pixel / 8));
 	if (!fbi->screen_base)
 	{
 		printk("ledfb: falied to allocate vram\n");
@@ -335,7 +272,7 @@ static int virtfb_register(struct fb_info *fbi, unsigned int id)
 
 	//Setup small default resolution
 	fbi->var.xres_virtual = fbi->var.xres = fbi->var.yres_virtual = fbi->var.yres  = 32;
-	fbi->var.bits_per_pixel = 32;
+	fbi->var.bits_per_pixel = 24;
 	fbi->screen_base = 0;
 
 	virtfb_check_var(&fbi->var, fbi);
