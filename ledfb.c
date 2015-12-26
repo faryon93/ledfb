@@ -48,21 +48,16 @@
 /*
  * Driver name
  */
-#define VIRT_FB_NAME      "ledfb"
+#define VIRT_FB_NAME	"ledfb"
+#define VIRT_FB_ID		0
 
-
-static int vfbcount = 1;
-module_param(vfbcount, int, 0); 
-static struct fb_info ** g_fb_list;
+static struct fb_info *g_fbi = NULL;
 
 static int virtfb_map_video_memory(struct fb_info *fbi);
 static int virtfb_unmap_video_memory(struct fb_info *fbi);
 
-static void *screen_base = NULL;
-
 /*
  * Set fixed framebuffer parameters based on variable settings.
- *
  * @param       info     framebuffer information pointer
  */
 static int virtfb_set_fix(struct fb_info *info)
@@ -85,7 +80,6 @@ static int virtfb_set_fix(struct fb_info *info)
 
 /*
  * Set framebuffer parameters and change the operating mode.
- *
  * @param       info     framebuffer information pointer
  */
 static int virtfb_set_par(struct fb_info *fbi)
@@ -114,9 +108,7 @@ static int virtfb_set_par(struct fb_info *fbi)
 
 /*
  * Check framebuffer variable parameters and adjust to valid values.
- *
  * @param       var      framebuffer variable parameters
- *
  * @param       info     framebuffer information pointer
  */
 static int virtfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
@@ -215,14 +207,11 @@ static int virtfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 
 /*
  * Pan or Wrap the Display
- *
  * This call looks only at xoffset, yoffset and the FB_VMODE_YWRAP flag
- *
  * @param               var     Variable screen buffer information
  * @param               info    Framebuffer information pointer
  */
-static int
-virtfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
+static int virtfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 {
 
 	if (info->var.yoffset == var->yoffset)
@@ -238,47 +227,17 @@ virtfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 
 /*
  * Function to handle custom mmap for virtual framebuffer.
- *
  * @param       fbi     framebuffer information pointer
- *
  * @param       vma     Pointer to vm_area_struct
  */
 static int virtfb_mmap(struct fb_info *fbi, struct vm_area_struct *vma)
 {
 	int err;
-	// u32 len;
-	// unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
-
-	// if (offset < fbi->fix.smem_len) {
-	// 	/* mapping framebuffer memory */
-	// 	len = fbi->fix.smem_len - offset;
-	// 	vma->vm_pgoff = (fbi->fix.smem_start + offset) >> PAGE_SHIFT;
-	// } else {
-	// 	return -EINVAL;
-	// }
-
-	// len = PAGE_ALIGN(len);
-	// if (vma->vm_end - vma->vm_start > len)
-	// 	return -EINVAL;
-
-	// /* make buffers bufferable */
-	// vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
-
-	// vma->vm_flags |= VM_IO | VM_RESERVED;
-
-	// if (remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
-	// 		    vma->vm_end - vma->vm_start, vma->vm_page_prot)) {
-	// 	dev_dbg(fbi->device, "mmap remap_pfn_range failed\n");
-	// 	return -ENOBUFS;
-	// }
-
-	if (vma == NULL || fbi == NULL)
-		return -ENOBUFS;
 
 	err = remap_vmalloc_range(vma, fbi->screen_base, 0);
 	if (0 != err)
 	{
-		printk("failed to remap memory: %d!\n", err);
+		printk("failed to remap vram: %d!\n", err);
 		return -ENOBUFS;
 	}
 	
@@ -301,85 +260,43 @@ static struct fb_ops virtfb_ops = {
 };
 
 
-/*
- * Main framebuffer functions
- */
-
 /*!
  * Allocates the DRAM memory for the frame buffer.      This buffer is remapped
  * into a non-cached, non-buffered, memory region to allow palette and pixel
  * writes to occur without flushing the cache.  Once this area is remapped,
  * all virtual memory access to the video memory should occur at the new region.
- *
  * @param       fbi     framebuffer information pointer
- *
  * @return      Error code indicating success or failure
  */
 static int virtfb_map_video_memory(struct fb_info *fbi)
 {
-	// if (fbi->fix.smem_len < fbi->var.yres_virtual * fbi->fix.line_length)
-	// 	fbi->fix.smem_len = fbi->var.yres_virtual *
-	// 			    fbi->fix.line_length;
-
-	// fbi->screen_base = dma_alloc_writecombine(fbi->device,
-	// 			fbi->fix.smem_len,
-	// 			(dma_addr_t *)&fbi->fix.smem_start,
-	// 			GFP_DMA);
-	// if (fbi->screen_base == 0) {
-	// 	dev_err(fbi->device, "Unable to allocate framebuffer memory\n");
-	// 	fbi->fix.smem_len = 0;
-	// 	fbi->fix.smem_start = 0;
-	// 	return -EBUSY;
-	// }
-
-	// dev_dbg(fbi->device, "allocated fb @ paddr=0x%08X, size=%d.\n",
-	// 	(uint32_t) fbi->fix.smem_start, fbi->fix.smem_len);
-
-	// fbi->screen_size = fbi->fix.smem_len;
-
-	// /* Clear the screen */
-	// memset((char *)fbi->screen_base, 0, fbi->fix.smem_len);
-
 	if (fbi->fix.smem_len < fbi->var.yres_virtual * fbi->fix.line_length)
-	 	fbi->fix.smem_len = fbi->var.yres_virtual * fbi->fix.line_length;
+		fbi->fix.smem_len = fbi->var.yres_virtual * fbi->fix.line_length;
 
-	 fbi->screen_size = fbi->fix.smem_len;
-	 fbi->fix.smem_start = 0;
+	fbi->screen_size = fbi->fix.smem_len;
+	fbi->fix.smem_start = 0;
 
+	// allocate the virtual memory
 	fbi->screen_base = vmalloc_user(fbi->var.xres * fbi->var.yres * fbi->var.bits_per_pixel/8);
 	if (!fbi->screen_base)
 	{
-		printk("ledfb: falied to allocate virtual vram\n");
-		return -ENOBUFS;
+		printk("ledfb: falied to allocate vram\n");
+		return -ENOMEM;
 	}
-
-	screen_base = fbi->screen_base;
-
-	printk("ledfb: mapped memory\n");
 
 	return 0;
 }
 
 /*!
  * De-allocates the DRAM memory for the frame buffer.
- *
  * @param       fbi     framebuffer information pointer
- *
  * @return      Error code indicating success or failure
  */
 static int virtfb_unmap_video_memory(struct fb_info *fbi)
 {
-	// dma_free_writecombine(fbi->device, fbi->fix.smem_len,
-	// 		      fbi->screen_base, fbi->fix.smem_start);
-	// fbi->screen_base = 0;
-	// fbi->fix.smem_start = 0;
-	// fbi->fix.smem_len = 0;
-	
-	fbi->screen_base = 0;
-	screen_base = 0;
+	fbi->screen_base = NULL;
+	fbi->fix.smem_len = 0;
 	vfree(fbi->screen_base);
-
-	printk("ledfb: unmapped memory\n");
 
 	return 0;
 }
@@ -390,30 +307,23 @@ static int virtfb_unmap_video_memory(struct fb_info *fbi)
  * filled with custom information passed in from the configurable
  * structures.  This includes information such as bits per pixel,
  * color maps, screen width/height and RGBA offsets.
- *
  * @return      Framebuffer structure initialized with our information
  */
 static struct fb_info *virtfb_init_fbinfo(struct fb_ops *ops)
 {
 	struct fb_info *fbi;
 
-	/*
-	 * Allocate sufficient memory for the fb structure
-	 */
+	// Allocate sufficient memory for the fb structure
 	fbi = framebuffer_alloc(sizeof(unsigned int), NULL);
 	if (!fbi)
 		return NULL;
 
-
 	fbi->var.activate = FB_ACTIVATE_NOW;
-
 	fbi->fbops = ops;
 	fbi->flags = FBINFO_FLAG_DEFAULT;
 
-
 	return fbi;
 }
-
 
 static int virtfb_register(struct fb_info *fbi, unsigned int id)
 {
@@ -444,14 +354,7 @@ static int virtfb_register(struct fb_info *fbi, unsigned int id)
 	fbi->flags &= ~FBINFO_MISC_USEREVENT;
 	console_unlock();
 
-
-	ret = register_framebuffer(fbi);
-	if (ret < 0)
-		goto err0;
-
-	return ret;
-err0:
-	return ret;
+	return register_framebuffer(fbi);
 }
 
 static void virtfb_unregister(struct fb_info *fbi)
@@ -469,10 +372,10 @@ static int dev_open(struct inode *inode, struct file *fil)
 
 static ssize_t dev_read(struct file *filp, char *buf, size_t len, loff_t *off)
 {
-	if (screen_base == 0)
+	if (g_fbi == NULL || g_fbi->screen_base == NULL)
 		return -1;
 
-	copy_to_user(buf, screen_base, len);
+	copy_to_user(buf, g_fbi->screen_base, len);
 	return len;
 }
 
@@ -499,26 +402,18 @@ static struct file_operations fops =
 };
 
 static struct miscdevice userland_dev = {
-        /*
-         * We don't care what minor number we end up with, so tell the
-         * kernel to just pick one.
-         */
         MISC_DYNAMIC_MINOR,
-        /*
-         * Name ourselves /dev/hello.
-         */
         "ledfb-user",
-        /*
-         * What functions to call when a program performs file
-         * operations on the device.
-         */
         &fops
 };
 
 int userland_init(void)
 {
 	if (misc_register(&userland_dev))
+	{
 		printk(KERN_ALERT "failed to register userland device\n");
+		return -1;
+	}
 
 	return 0;
 }
@@ -533,76 +428,57 @@ void userland_destroy(void)
  * Main entry function for the framebuffer. The function registers the power
  * management callback functions with the kernel and also registers the MXCFB
  * callback functions with the core Linux framebuffer driver \b fbmem.c
- *
  * @return      Error code indicating success or failure
  */
-int __init virtfb_init(void)
+int __init ledfb_init(void)
 {
-	
-        u32 *  fbNum;
-        int  i, ret = 0;
+	int ret;    
 
-        /*
-         * Initialize FB structures
-         */
+	// initialize the userland interface
+    ret = userland_init();
+    if (ret != 0)
+    	goto fail;
 
-	g_fb_list = kzalloc(sizeof(struct fb_info*) * vfbcount, GFP_KERNEL);
-        for(i=0;i<vfbcount;i++)
-        {
-                g_fb_list[i] = virtfb_init_fbinfo(&virtfb_ops);
-                if (!g_fb_list[i]) {
-                        ret = -ENOMEM;
-                        goto init_fbinfo_failed;
-                }
+	// initialize the framebuffer structure
+    g_fbi = virtfb_init_fbinfo(&virtfb_ops);
+    if (!g_fbi)
+    {
+            ret = -ENOMEM;
+            goto fail;
+    }
+    *((u32*)g_fbi->par) = VIRT_FB_ID;
 
-                fbNum = (u32*)g_fb_list[i]->par;
-                *fbNum = i;
+    // register the framebuffer
+    ret = virtfb_register(g_fbi, VIRT_FB_ID);
+    if (ret < 0)
+		goto fail;
 
-                ret = virtfb_register(g_fb_list[i], i);
-                if (ret < 0)
-                        goto virtfb_register_failed;
-        }
+	return 0;
 
-    userland_init();
-
-
-        return 0;
-virtfb_register_failed:
-init_fbinfo_failed:
-        for(i=0;i<vfbcount;i++)
+fail:
+	if(g_fbi)
 	{
-		if(g_fb_list[i])
-		{
-			virtfb_unregister(g_fb_list[i]);
-        		framebuffer_release(g_fb_list[i]);
-		}
+		virtfb_unregister(g_fbi);
+    	framebuffer_release(g_fbi);
 	}
-        return ret;
 
+	return ret;
 }
 
-void virtfb_exit(void)
+void ledfb_exit(void)
 {
-
-	int i;
-
+	// destroy the userland device
 	userland_destroy();
 
-    for(i=0;i<vfbcount;i++)
-	{
-		if(g_fb_list[i])
-		{
-			virtfb_unregister(g_fb_list[i]);
-			virtfb_unmap_video_memory(g_fb_list[i]);
-
-			framebuffer_release(g_fb_list[i]);
-		}
-	}
+	// destroy the freamebuffer device
+	virtfb_unregister(g_fbi);
+	virtfb_unmap_video_memory(g_fbi);
+	framebuffer_release(g_fbi);
 }
 
 
-module_init(virtfb_init);
-module_exit(virtfb_exit);
+module_init(ledfb_init);
+module_exit(ledfb_exit);
 
 MODULE_AUTHOR("Maximilian Pachl");
 MODULE_DESCRIPTION("framebuffer driver for led matrix");
