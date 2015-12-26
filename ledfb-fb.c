@@ -1,31 +1,3 @@
-/*
- * Copyright 2004-2013 Freescale Semiconductor, Inc. All Rights Reserved.
- */
-
-/*
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
- */
-
-/*!
- * @defgroup Framebuffer Framebuffer Driver for surface sharing.
- */
-
-/*!
- * @file virtual_fb.c 
- *
- * @brief Virtual Frame buffer driver for surface sharing
- *
- * @ingroup Framebuffer
- */
-
-/*!
- * Include files
- */
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
@@ -45,13 +17,15 @@
 #include <linux/uaccess.h>
 #include <linux/miscdevice.h>
 
+#include "ledfb-userland.h"
+
 /*
  * Driver name
  */
 #define VIRT_FB_NAME	"ledfb"
 #define VIRT_FB_ID		0
 
-static struct fb_info *g_fbi = NULL;
+struct fb_info *g_fbi = NULL;
 
 static int virtfb_map_video_memory(struct fb_info *fbi);
 static int virtfb_unmap_video_memory(struct fb_info *fbi);
@@ -300,79 +274,20 @@ static void virtfb_unregister(struct fb_info *fbi)
 	unregister_framebuffer(fbi);
 }
 
-static int dev_open(struct inode *inode, struct file *fil)
-{
-	module_put(THIS_MODULE);
-	printk("ledfb-user: openend\n");
-	return 0;
-}
-
-static ssize_t dev_read(struct file *filp, char *buf, size_t len, loff_t *off)
-{
-	if (g_fbi == NULL || g_fbi->screen_base == NULL)
-		return -1;
-
-	copy_to_user(buf, g_fbi->screen_base, len);
-	return len;
-}
-
-static ssize_t dev_write(struct file *filp, const char *buff, size_t len, loff_t *off)
-{
-	return len;
-}
-
-static int dev_rls(struct inode *inod, struct file *filp)
-{
-	if (!try_module_get(THIS_MODULE))
-		return -1;
-
-	printk("ledfb-user: closed\n");
-	return 0;
-}
-
-static struct file_operations fops =
-{
-	.read = dev_read,
-	.open = dev_open,
-	.write = dev_write,
-	.release = dev_rls,
-};
-
-static struct miscdevice userland_dev = {
-        MISC_DYNAMIC_MINOR,
-        "ledfb-user",
-        &fops
-};
-
-int userland_init(void)
-{
-	if (misc_register(&userland_dev))
-	{
-		printk(KERN_ALERT "failed to register userland device\n");
-		return -1;
-	}
-
-	return 0;
-}
-
-void userland_destroy(void)
-{
-	misc_deregister(&userland_dev);
-}
-
-
 /*!
  * Main entry function for the framebuffer. The function registers the power
  * management callback functions with the kernel and also registers the MXCFB
- * callback functions with the core Linux framebuffer driver \b fbmem.c
+ * callback functtto kernel: [ 6504.744808] ata1.00: ACPI cmd ef/02:00:00:00:00:a0 (SET FEATURES) succeeded
  * @return      Error code indicating success or failure
  */
 int __init ledfb_init(void)
 {
 	int ret;    
 
+	printk("Hello from ledfb driver\n");
+
 	// initialize the userland interface
-    ret = userland_init();
+    ret = ledfb_user_init();
     if (ret != 0)
     	goto fail;
 
@@ -384,11 +299,13 @@ int __init ledfb_init(void)
             goto fail;
     }
     *((u32*)g_fbi->par) = VIRT_FB_ID;
-
+   
     // register the framebuffer
     ret = virtfb_register(g_fbi, VIRT_FB_ID);
     if (ret < 0)
 		goto fail;
+
+	printk("Successfully initialized ledfb\n");
 
 	return 0;
 
@@ -399,13 +316,17 @@ fail:
     	framebuffer_release(g_fbi);
 	}
 
+	// TODO: unregister userland char device
+
+	printk(KERN_ALERT "failed to initialize ledfb driver\n");
+
 	return ret;
 }
 
 void ledfb_exit(void)
 {
 	// destroy the userland device
-	userland_destroy();
+	ledfb_user_exit();
 
 	// destroy the freamebuffer device
 	virtfb_unregister(g_fbi);
