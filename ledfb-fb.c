@@ -1,21 +1,7 @@
 #include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/platform_device.h>
-#include <linux/sched.h>
-#include <linux/errno.h>
-#include <linux/string.h>
-#include <linux/interrupt.h>
-#include <linux/slab.h>
 #include <linux/fb.h>
-#include <linux/delay.h>
-#include <linux/init.h>
-#include <linux/ioport.h>
-#include <linux/dma-mapping.h>
-#include <linux/clk.h>
 #include <linux/console.h>
-#include <linux/io.h>
 #include <linux/uaccess.h>
-#include <linux/miscdevice.h>
 
 #include "ledfb-userland.h"
 
