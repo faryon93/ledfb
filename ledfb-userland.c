@@ -26,7 +26,7 @@ static struct miscdevice ledfb_user_misc =
     &ledfb_user_fops
 };
 
-static struct fb_info *g_fbi;
+extern struct fb_info *g_fbi;
 
 
 // ==========================================================================================
