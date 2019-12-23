@@ -5,3 +5,6 @@
 *.order
 *.cmd
 .tmp_versions*
+cmake-*
+Release.*
+Debug.*

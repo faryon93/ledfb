@@ -1,10 +1,10 @@
 obj-m += ledfb.o
 
-KERNEL=/usr/src/linux-source-3.16
+KERNEL=/lib/modules/$(shell uname -r)/build
 PWD=$(shell pwd)
 
-all:
+all: ledfb.c
 	$(MAKE) -C $(KERNEL) M=$(PWD) modules
 
-clean: 
+clean:
 	$(MAKE) -C $(KERNEL) M=$(PWD) clean
