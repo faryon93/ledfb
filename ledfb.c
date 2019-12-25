@@ -36,7 +36,7 @@ int yres = 3 * 32;
 static int virtfb_map_video_memory(struct fb_info *fbi)
 {   
 	fbi->screen_size = fbi->var.xres * fbi->var.yres * (fbi->var.bits_per_pixel / 8);
-    fbi->fix.smem_len = fbi->screen_size;
+    fbi->fix.smem_len = fbi->screen_size * 2;   // double the memory for double-buffering
     fbi->fix.smem_start = 0;
 
 	// allocate the virtual memory
@@ -47,7 +47,7 @@ static int virtfb_map_video_memory(struct fb_info *fbi)
 		return -ENOMEM;
 	}
 	
-	printk("ledfb: allocated %d bytes of framebuffer memory at %p\n", fbi->var.xres * fbi->var.yres * (fbi->var.bits_per_pixel / 8), fbi->screen_base);
+	printk("ledfb: allocated %d bytes of framebuffer memory at %p\n", fbi->fix.smem_len, fbi->screen_base);
 
 	return 0;
 }
