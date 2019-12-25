@@ -280,36 +280,12 @@ int main(int argc, char *argv[])
 					}
                 }
 
-				int sz = (8 * 64 * PANEL_BPP) + payload_offset;
+                // ethernet header (?) + opcode (1) + segment (1) + image data (8 * 64 *3)
+				int sz = (8 * 64 * PANEL_BPP) + payload_offset + 2;
 				if (eth_send_packet(sock, panel_addrs[p], ifindex, sz) < 0)
 				{
 					perror("sendto");
 				}
-#if 0
-				// fill ethernet packet with pixel data
-				int pixel_count = 0;
-				int pixel_offset = payload_offset + 2;
-				for (int y = 0; y < PANEL_SIZE_Y / PANEL_CHUNKS; y++)
-				{
-					for (int x = 0; x < PANEL_SIZE_X; x++)
-					{
-						// read pixel from the framebuffer
-						int fb_base = ((chunk * PANEL_CHUNKS) + y) * PANEL_BPP * PANEL_SIZE_X + PANEL_BPP * x;
-						int pixel_base = pixel_offset + PANEL_BPP * pixel_count;
-						packet_buffer[pixel_base + 0] = correct_gamma(GAMMA, framebuffer[fb_base + 0]);
-						packet_buffer[pixel_base + 1] = correct_gamma(GAMMA, framebuffer[fb_base + 1]);
-						packet_buffer[pixel_base + 2] = correct_gamma(GAMMA, framebuffer[fb_base + 2]);
-
-						pixel_count++;
-					}
-				}
-
-				if (eth_send_packet(sock, panel_addrs[p], ifindex,
-					pixel_offset + PANEL_SIZE_X * PANEL_SIZE_Y / PANEL_CHUNKS * PANEL_BPP) < 0)
-				{
-					perror("sendto");
-				}
-#endif
             }
 		}
 
