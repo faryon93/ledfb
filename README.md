@@ -1,4 +1,4 @@
-#ledfb
+# ledfb
 A framebuffer playback device for ethernet based LED matrix displays.
 
 ## Installation
