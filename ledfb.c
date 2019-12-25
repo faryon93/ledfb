@@ -34,20 +34,20 @@ int yres = 3 * 32;
  * @return error code indicating success or failure
  */
 static int virtfb_map_video_memory(struct fb_info *fbi)
-{
-	if (fbi->fix.smem_len < fbi->var.yres_virtual * fbi->fix.line_length)
-		fbi->fix.smem_len = fbi->var.yres_virtual * fbi->fix.line_length;
-
-	fbi->screen_size = fbi->fix.smem_len;
-	fbi->fix.smem_start = 0;
+{   
+	fbi->screen_size = fbi->var.xres * fbi->var.yres * (fbi->var.bits_per_pixel / 8);
+    fbi->fix.smem_len = fbi->screen_size;
+    fbi->fix.smem_start = 0;
 
 	// allocate the virtual memory
-	fbi->screen_base = vmalloc_user(fbi->var.xres * fbi->var.yres * (fbi->var.bits_per_pixel / 8));
+	fbi->screen_base = vmalloc_user(fbi->fix.smem_len);
 	if (!fbi->screen_base)
 	{
 		printk("ledfb: falied to allocate vram\n");
 		return -ENOMEM;
 	}
+	
+	printk("ledfb: allocated %d bytes of framebuffer memory at %p\n", fbi->var.xres * fbi->var.yres * (fbi->var.bits_per_pixel / 8), fbi->screen_base);
 
 	return 0;
 }
@@ -185,14 +185,15 @@ static int virtfb_mmap(struct fb_info *fbi, struct vm_area_struct *vma)
 {
 	int err;
 
+    printk("ledfb: remapping %lu bytes at %p\n", vma->vm_end - vma->vm_start, fbi->screen_base);
 	err = remap_vmalloc_range(vma, fbi->screen_base, 0);
 	if (0 != err)
 	{
-		printk("failed to remap vram: %d!\n", err);
+		printk("ledfb: failed to remap vram: %d!\n", err);
 		return -ENOBUFS;
 	}
 	
-	printk("successfully remapped vram\n");
+	printk("ledfb: successfully remapped vram\n");
 
 	return 0;
 }
@@ -299,7 +300,7 @@ int __init ledfb_init(void)
     if (ret < 0)
 		goto fail;
 
-	printk("Successfully initialized ledfb\n");
+	printk("ledfb: Successfully initialized ledfb\n");
 
 	return 0;
 
