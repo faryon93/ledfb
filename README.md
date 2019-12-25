@@ -16,5 +16,5 @@ $: sudo ./ledfbd enp0s25 /dev/fb1
 
 ## Video Playback
 ```sh
-$: mplayer -vo fbdev:/dev/fb1 -vf scale=128:96 -aspect 4:3 video.mp4
+$: mplayer -vo fbdev:/dev/fb1 -vf scale=128:96 -aspect 4:3 -loop 0 video.mp4
 ```
