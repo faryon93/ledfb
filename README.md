@@ -1,4 +1,4 @@
-#ledfb
+# ledfb
 A framebuffer playback device for ethernet based LED matrix displays.
 
 ## Installation
@@ -11,6 +11,7 @@ $: insmod ledfb.ko
 # compile and run daemon
 $: mkdir build && cd build
 $: cmake .. && make
+$: sudo ip link set dev enp0s25 mtu 9000
 $: sudo ./ledfbd enp0s25 /dev/fb1
 ```
 
