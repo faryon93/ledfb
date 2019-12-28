@@ -15,6 +15,16 @@ $: sudo ip link set dev enp0s25 mtu 9000
 $: sudo ./ledfbd enp0s25 /dev/fb1
 ```
 
+## Capabilities and Groups
+```sh
+$: setcap cap_net_raw=eip ledctrl
+$: setcap cap_net_raw=eip build/ledfbd
+
+# Add your user to the group `video`:
+$: nano /etc/group
+video:x:986:sddm,snowden
+```
+
 ## Media Playback
 ```sh
 $: mplayer -vo fbdev:/dev/fb1 -vf scale=128:96 -aspect 4:3 -loop 0 video.mp4
