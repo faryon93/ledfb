@@ -9,3 +9,4 @@
 cmake-*
 Release.*
 Debug.*
+ledctrl
