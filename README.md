@@ -28,5 +28,6 @@ video:x:986:sddm,snowden
 ## Media Playback
 ```sh
 $: mplayer -vo fbdev:/dev/fb1 -vf scale=128:96 -aspect 4:3 -loop 0 video.mp4
+$: mplayer -vo fbdev:/dev/fb1 -vf scale=128:96 -aspect 4:3 tv:// -tv driver=v4l2:device=/dev/video0
 $: fbi -autodown -noverbose -blend 100 -t 3 -d /dev/fb1 36c3.png hackaday.jpg nyan.jpeg
 ```
