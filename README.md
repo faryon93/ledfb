@@ -15,7 +15,8 @@ $: sudo ip link set dev enp0s25 mtu 9000
 $: sudo ./ledfbd enp0s25 /dev/fb1
 ```
 
-## Video Playback
+## Media Playback
 ```sh
 $: mplayer -vo fbdev:/dev/fb1 -vf scale=128:96 -aspect 4:3 -loop 0 video.mp4
+$: fbi -autodown -noverbose -blend 100 -t 3 -d /dev/fb1 36c3.png hackaday.jpg nyan.jpeg
 ```
