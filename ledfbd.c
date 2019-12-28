@@ -59,9 +59,9 @@
 /** All mac adresses of the led panels. */
 static uint8_t panel_addrs[][6] = 
 {
-	{0xDE, 0xAD, 0xBE, 0xEF, 0xC0, 0xD1},
+	{0xDE, 0xAD, 0xBE, 0xEF, 0xC0, 0xD0},
+    {0xDE, 0xAD, 0xBE, 0xEF, 0xC0, 0xD1},
     {0xDE, 0xAD, 0xBE, 0xEF, 0xC0, 0xD2},
-    {0xDE, 0xAD, 0xBE, 0xEF, 0xC0, 0xD0},
 };
 
 /** Definition of the panel matrix. */
@@ -71,7 +71,7 @@ static uint8_t panel_addrs[][6] =
 #define PP_OP_STORE_FRAME	0x29
 
 /** Gamma correction value. */
-#define GAMMA               1.5
+#define GAMMA               2
 
 // ----------------------------------------------------------------------------------
 //  local variables
@@ -98,7 +98,7 @@ static uint64_t clock_us(void)
 
 static uint8_t correct_gamma(double g, uint8_t val)
 {
-	return (uint8_t) floor(255 * pow((val / 255.0), g));
+	return (uint8_t) (round(255 * pow((val / 255.0), g) * 1));
 }
 
 static int eth_prepare_packet(struct sockaddr *source_hwaddr)
