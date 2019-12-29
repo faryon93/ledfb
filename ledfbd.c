@@ -17,8 +17,6 @@
  */
 
 #include <stdio.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
 #include <linux/fb.h>
 #include <sys/ioctl.h>
@@ -34,8 +32,8 @@
 #include <sys/socket.h>
 #include <linux/if_packet.h>
 #include <math.h>
-#include <malloc.h>
-
+#include <getopt.h>
+#include <stdbool.h>
 
 // ----------------------------------------------------------------------------------
 //  constants
@@ -72,6 +70,16 @@ static uint8_t panel_addrs[][6] =
 
 /** Gamma correction value. */
 #define GAMMA               2
+
+// ----------------------------------------------------------------------------------
+//  options
+// ----------------------------------------------------------------------------------
+static struct option long_options[] =
+{
+        {"flip-x", optional_argument, NULL, 'x'},
+        {"flip-y", optional_argument, NULL, 'y'},
+        {NULL, 0, NULL, 0}
+};
 
 // ----------------------------------------------------------------------------------
 //  local variables
@@ -153,22 +161,47 @@ static void sigint_handler(int signal)
 int main(int argc, char *argv[])
 {
 	int fb = -1, sock = -1;
-	int framesize, ifindex, mtu, payload_offset, errorcode = -1;
+	int ifindex, mtu, payload_offset, errorcode = -1;
 	uint8_t *framebuffer = NULL;
 	struct fb_var_screeninfo vinfo;
+    struct fb_fix_screeninfo finfo;
 	struct ifreq iface;
 	struct sockaddr hwaddr;
 	struct sigaction signal_handler;
+	uint32_t fb_width = 0;
+	uint32_t fb_bpp = 0;
+	uint32_t framesize = 0;
+	char ch;
 
-	// make sure all cmd args are present
-	if (argc < 3)
+	bool flip_x = false;
+	bool flip_y = false;
+
+    // loop over all of the options
+    while ((ch = getopt_long(argc, argv, "xy", long_options, NULL)) != -1)
+    {
+        switch (ch)
+        {
+            case 'x':
+                flip_x = true;
+                printf("flip x enabled: yes\n");
+                break;
+            case 'y':
+                flip_y = true;
+                printf("flip y enabled: yes\n");
+                break;
+        }
+    }
+
+
+    // make sure all cmd args are present
+	if (argv[optind] == NULL || argv[optind + 1] == NULL)
 	{
 		printf("usage: ./ledfbd iface fbdev\n");
 		goto err;
 	}
 
 	// open the framebuffer device file
-	fb = open(argv[2], O_RDONLY);
+	fb = open(argv[optind + 1], O_RDONLY);
 	if (-1 == fb)
 	{
 		perror("open");
@@ -181,8 +214,17 @@ int main(int argc, char *argv[])
 		goto err;
 	}
 
-	// map the framebuffer pixels to userspace
-	framesize = vinfo.xres * vinfo.yres * (vinfo.bits_per_pixel / 8);
+    // inquire fixed screen infos
+    if (ioctl(fb, FBIOGET_FSCREENINFO, &finfo) == -1) {
+        perror("FBIOGET_VSCREENINFO");
+        close(fb);
+        return -1;
+    }
+
+    // map the framebuffer pixels to userspace
+    fb_bpp = (vinfo.bits_per_pixel / 8);
+    fb_width = finfo.line_length / fb_bpp;
+    framesize = vinfo.xres * vinfo.yres * fb_bpp;
     printf("Framebuffer width: %d, height: %d\n", vinfo.xres, vinfo.yres);
 
 	framebuffer = (unsigned char*)mmap(0, framesize, PROT_READ, MAP_SHARED, fb, 0);
@@ -192,10 +234,6 @@ int main(int argc, char *argv[])
 		goto err;
 	}
 
-	size_t fb2_size = vinfo.xres * vinfo.yres * (vinfo.bits_per_pixel / 8);
-	uint8_t *fb2 = malloc(fb2_size);
-	memset(fb2, 0, fb2_size);
-
 	// Open RAW socket to send on
 	if ((sock = socket(AF_PACKET, SOCK_RAW, IPPROTO_RAW)) == -1) {
 	    perror("socket");
@@ -204,7 +242,7 @@ int main(int argc, char *argv[])
 
 	// Get the index of the interface to send on
 	memset(&iface, 0, sizeof(struct ifreq));
-	strncpy(iface.ifr_name, argv[1], IFNAMSIZ - 1);
+	strncpy(iface.ifr_name, argv[optind], IFNAMSIZ - 1);
 	if (ioctl(sock, SIOCGIFINDEX, &iface) < 0)
 	{
 		perror("SIOCGIFINDEX");
@@ -226,7 +264,6 @@ int main(int argc, char *argv[])
 		perror("SIOCGIFMTU");
 		goto err;
 	}
-	mtu = iface.ifr_mtu;
 
 	// setup the ethernet packet
 	payload_offset = eth_prepare_packet(&hwaddr);
@@ -246,9 +283,6 @@ int main(int argc, char *argv[])
 
 		for (int p = 0; p < PANEL_COUNT; p++)
 		{
-			// TODO: calculate the x and y offset from the panel position
-			//		 to support multiple led matrix modules
-
             int px = 0;
             int py = p * PANEL_SIZE_Y;
 
@@ -263,17 +297,19 @@ int main(int argc, char *argv[])
                 int chunk_x = (chunk < 4) ? 0 : 64;
                 int chunk_y = (chunk % 4) * 8;
 
-//                printf("px: %d, py: %d: c_x: %d, cy: %d => x: %d, y: %d\n",
-//					   px, py, chunk_x, chunk_y, px + chunk_x, py + chunk_y);
-
 				for (int y = 0; y < 8; y++)
                 {
 					for (int x = 0; x < 64; x++)
 					{
-						int fb_x = (vinfo.xres - (px + chunk_x + x)) - 1;
-						int fb_y = (vinfo.yres - (py + chunk_y + y)) - 1;
+                        uint32_t fb_x = px + chunk_x + x;
+                        if (flip_x)
+                            fb_x = (vinfo.xres - (px + chunk_x + x)) - 1;
 
-						uint8_t *fb_base = &framebuffer[(fb_y * vinfo.xres + fb_x) * PANEL_BPP];
+                        uint32_t fb_y = py + chunk_y + y;
+                        if (flip_y)
+                            fb_y = (vinfo.yres - (py + chunk_y + y)) - 1;
+
+						uint8_t *fb_base = &framebuffer[(fb_y * fb_width + fb_x) * (vinfo.bits_per_pixel / 8)];
 						packet[packet_pos++] = correct_gamma(GAMMA, fb_base[0]);
 						packet[packet_pos++] = correct_gamma(GAMMA, fb_base[1]);
 						packet[packet_pos++] = correct_gamma(GAMMA, fb_base[2]);
@@ -283,9 +319,7 @@ int main(int argc, char *argv[])
                 // ethernet header (?) + opcode (1) + segment (1) + image data (8 * 64 *3)
 				int sz = (8 * 64 * PANEL_BPP) + payload_offset + 2;
 				if (eth_send_packet(sock, panel_addrs[p], ifindex, sz) < 0)
-				{
 					perror("sendto");
-				}
             }
 		}
 
